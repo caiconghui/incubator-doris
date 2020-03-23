@@ -117,6 +117,10 @@ public class MysqlCapability {
         return (flags & Flag.CLIENT_TRANSACTIONS.getFlagBit()) != 0;
     }
 
+    public boolean isClientLocalFiles() {
+        return (flags & Flag.CLIENT_LOCAL_FILES.getFlagBit()) != 0;
+    }
+
     public boolean isConnectedWithDb() {
         return (flags & Flag.CLIENT_CONNECT_WITH_DB.getFlagBit()) != 0;
     }
