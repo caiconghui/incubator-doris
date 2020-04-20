@@ -65,6 +65,11 @@ import org.apache.logging.log4j.Logger;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -275,7 +280,13 @@ public class GlobalTransactionMgr implements Writable {
             throw new MetaNotFoundException("could not find db [" + dbId + "]");
         }
         DatabaseTransactionMgr dbTransactionMgr = getDatabaseTransactioMgr(dbId);
-        TransactionState transactionState =  dbTransactionMgr.getTransactionState(transactionId);
+        TransactionState transactionState = null;
+        dbTransactionMgr.readLock();
+        try {
+            transactionState = dbTransactionMgr.getTransactionState(transactionId);
+        } finally {
+            dbTransactionMgr.readUnlock();
+        }
         if (transactionState == null
                 || transactionState.getTransactionStatus() == TransactionStatus.ABORTED) {
             throw new TransactionCommitFailedException(
@@ -474,7 +485,14 @@ public class GlobalTransactionMgr implements Writable {
             db.writeUnlock();
         }
         DatabaseTransactionMgr dbTransactionMgr = getDatabaseTransactioMgr(db.getId());
-        TransactionState transactionState = dbTransactionMgr.getTransactionState(transactionId);
+        TransactionState transactionState = null;
+        dbTransactionMgr.readLock();
+        try {
+            transactionState = dbTransactionMgr.getTransactionState(transactionId);
+        } finally {
+            dbTransactionMgr.readUnlock();
+        }
+
         switch (transactionState.getTransactionStatus()) {
             case COMMITTED:
             case VISIBLE:
@@ -495,6 +513,15 @@ public class GlobalTransactionMgr implements Writable {
             currentTimeMillis = System.currentTimeMillis();
         }
         return transactionState.getTransactionStatus() == TransactionStatus.VISIBLE;
+    }
+
+    public void abortTransaction(long dbId, long transactionId, String reason) throws UserException {
+        abortTransaction(transactionId, reason, null);
+    }
+
+    public void abortTransaction(Long dbId, Long txnId, String reason, TxnCommitAttachment txnCommitAttachment) throws UserException {
+        DatabaseTransactionMgr dbTransactionMgr = getDatabaseTransactioMgr(dbId);
+        dbTransactionMgr.abortTransaction(txnId, reason, txnCommitAttachment);
     }
 
     // for http cancel stream load api
@@ -540,7 +567,7 @@ public class GlobalTransactionMgr implements Writable {
             try {
                 dbTransactionMgr.readLock();
                 // only send task to committed transaction
-                List<TransactionState> committedTxnList = dbTransactionMgr.getIdToTransactionState().values().stream()
+                List<TransactionState> committedTxnList = dbTransactionMgr.getIdToRunningTransactionState().values().stream()
                         .filter(transactionState -> (transactionState.getTransactionStatus() == TransactionStatus.COMMITTED))
                         .sorted(Comparator.comparing(TransactionState::getCommitTime))
                         .collect(Collectors.toList());
@@ -561,7 +588,13 @@ public class GlobalTransactionMgr implements Writable {
      */
     public void finishTransaction(long dbId, long transactionId, Set<Long> errorReplicaIds) throws UserException {
         DatabaseTransactionMgr dbTransactionMgr = getDatabaseTransactioMgr(dbId);
-        TransactionState transactionState = dbTransactionMgr.getTransactionState(transactionId);
+        dbTransactionMgr.readLock();
+        TransactionState transactionState = null;
+        try {
+            transactionState = dbTransactionMgr.getTransactionState(transactionId);
+        } finally {
+            dbTransactionMgr.readUnlock();
+        }
         // add all commit errors and publish errors to a single set
         if (errorReplicaIds == null) {
             errorReplicaIds = Sets.newHashSet();
@@ -719,7 +752,7 @@ public class GlobalTransactionMgr implements Writable {
      */
     public boolean isPreviousTransactionsFinished(long endTransactionId, long dbId, List<Long> tableIdList) {
         DatabaseTransactionMgr dbTransactionMgr = getDatabaseTransactioMgr(dbId);
-        for (Map.Entry<Long, TransactionState> entry : dbTransactionMgr.getIdToTransactionState().entrySet()) {
+        for (Map.Entry<Long, TransactionState> entry : dbTransactionMgr.getIdToRunningTransactionState().entrySet()) {
             if (entry.getValue().getDbId() != dbId || !isIntersectionNotEmpty(entry.getValue().getTableIdList(),
                     tableIdList) || !entry.getValue().isRunning()) {
                 continue;
@@ -768,7 +801,7 @@ public class GlobalTransactionMgr implements Writable {
 
             dbTransactionMgr.readLock();
             try {
-                for (TransactionState transactionState : dbTransactionMgr.getIdToTransactionState().values()) {
+                for (TransactionState transactionState : dbTransactionMgr.getIdToRunningTransactionState().values()) {
                     if (transactionState.isTimeout(currentMillis)) {
                         // txn is running but timeout, abort it.
                         timeoutTxns.add(transactionState.getTransactionId());
@@ -794,7 +827,12 @@ public class GlobalTransactionMgr implements Writable {
 
     public TransactionState getTransactionState(long dbId, long transactionId) {
         DatabaseTransactionMgr dbTransactionMgr = dbIdToDatabaseTransactionMgrs.get(dbId);
-        return dbTransactionMgr.getTransactionState(transactionId);
+        dbTransactionMgr.readLock();
+        try {
+            return dbTransactionMgr.getTransactionState(transactionId);
+        } finally {
+            dbTransactionMgr.readUnlock();
+        }
     }
     
     public void setEditLog(EditLog editLog) {
@@ -1047,7 +1085,7 @@ public class GlobalTransactionMgr implements Writable {
         int numTransactions = getTransactionNum();
         out.writeInt(numTransactions);
         for (DatabaseTransactionMgr dbTransactionMgr : dbIdToDatabaseTransactionMgrs.values()) {
-            Map<Long, TransactionState> idToTransactionState = dbTransactionMgr.getIdToTransactionState();
+            Map<Long, TransactionState> idToTransactionState = dbTransactionMgr.getIdToRunningTransactionState();
             for (Map.Entry<Long, TransactionState> entry : idToTransactionState.entrySet()) {
                 entry.getValue().write(out);
             }
