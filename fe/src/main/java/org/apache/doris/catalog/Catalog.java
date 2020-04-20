@@ -2554,6 +2554,7 @@ public class Catalog {
         fullNameToDb.put(db.getFullName(), db);
         final Cluster cluster = nameToCluster.get(db.getClusterName());
         cluster.addDb(db.getFullName(), db.getId());
+        globalTransactionMgr.addDatabaseTransactionMgr(db.getId());
     }
 
     // for test
@@ -2638,6 +2639,7 @@ public class Catalog {
             fullNameToDb.remove(db.getFullName());
             final Cluster cluster = nameToCluster.get(db.getClusterName());
             cluster.removeDb(dbName, db.getId());
+            globalTransactionMgr.removeDatabaseTransactionMgr(db.getId());
             editLog.logDropDb(dbName);
         } finally {
             unlock();
@@ -2685,6 +2687,7 @@ public class Catalog {
             idToDb.remove(db.getId());
             final Cluster cluster = nameToCluster.get(db.getClusterName());
             cluster.removeDb(dbName, db.getId());
+            globalTransactionMgr.removeDatabaseTransactionMgr(db.getId());
         } finally {
             unlock();
         }
