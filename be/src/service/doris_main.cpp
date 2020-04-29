@@ -120,6 +120,9 @@ int main(int argc, char** argv) {
     }
 
     string conffile = string(getenv("DORIS_HOME")) + "/conf/be.conf";
+    if (getenv("DORIS_CONF_HOME") != nullptr) {
+        conffile = string(getenv("DORIS_CONF_HOME")) + "/be.conf";
+    }
     if (!doris::config::init(conffile.c_str(), true)) {
         fprintf(stderr, "error read config file. \n");
         return -1;

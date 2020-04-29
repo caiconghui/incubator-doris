@@ -74,6 +74,14 @@ std::string StreamLoadContext::to_json() const {
         writer.Key("ErrorURL");
         writer.String(error_url.c_str());
     }
+    writer.Key("BeginTxnCost");
+    writer.Int64(begin_txn_cost_nanos / 1000000);
+    writer.Key("StreamLoadPlanCost");
+    writer.Int64(stream_load_plan_cost_nanos / 1000000);
+    writer.Key("WriteDataCost");
+    writer.Int64(write_data_cost_nanos / 1000000);
+    writer.Key("CommitTxnCost");
+    writer.Int64(commit_and_publish_txn_cost_nanos / 1000000);
     writer.EndObject();
     return s.GetString();
 }
