@@ -168,23 +168,12 @@ int StreamLoadAction::on_header(HttpRequest* req) {
 
     LOG(INFO) << "new income streaming load request." << ctx->brief()
               << ", db=" << ctx->db << ", tbl=" << ctx->table;
-
-    auto st = _on_header(req, ctx);
-    if (!st.ok()) {
-        ctx->status = st;
-        if (ctx->need_rollback) {
-            _exec_env->stream_load_executor()->rollback_txn(ctx);
-            ctx->need_rollback = false;
-        }
-        if (ctx->body_sink.get() != nullptr) {
-            ctx->body_sink->cancel();
-        }
-        auto str = ctx->to_json();
-        HttpChannel::send_reply(req, str);
-        k_streaming_load_current_processing.increment(-1);
-        return -1;
+    if (!_thread_pool.offer(boost::bind<void>(&StreamLoadAction::_process_header, this, req, ctx))) {
+        LOG(WARNING) << "submit stream load process header task handle failed, id=" << ctx->id
+                     << ", directly execute it instead";
+        _process_header(req, ctx);
     }
-    ctx->on_header_cost_nanos = MonotonicNanos() - ctx->start_nanos;
+    LOG(INFO) << "submit stream load process header task handle succeed, id=" << ctx->id;
     return 0;
 }
 
@@ -409,7 +398,25 @@ Status StreamLoadAction::_data_saved_path(HttpRequest* req, std::string* file_pa
     return Status::OK();
 }
 
-void StreamLoadAction::_finalize(HttpRequest* req, doris::StreamLoadContext* ctx, HandleFinishCallback cb) {
+void StreamLoadAction::_process_header(HttpRequest* req, StreamLoadContext* ctx) {
+    auto st = _on_header(req, ctx);
+    if (!st.ok()) {
+        ctx->status = st;
+        if (ctx->need_rollback) {
+            _exec_env->stream_load_executor()->rollback_txn(ctx);
+            ctx->need_rollback = false;
+        }
+        if (ctx->body_sink.get() != nullptr) {
+            ctx->body_sink->cancel();
+        }
+        auto str = ctx->to_json();
+        HttpChannel::send_reply(req, str);
+        k_streaming_load_current_processing.increment(-1);
+    }
+    ctx->on_header_cost_nanos = MonotonicNanos() - ctx->start_nanos;
+}
+
+void StreamLoadAction::_finalize(HttpRequest* req, StreamLoadContext* ctx, HandleFinishCallback cb) {
     evhttp_request_own(req->get_evhttp_request());
     // status already set to fail
     if (ctx->status.ok()) {
