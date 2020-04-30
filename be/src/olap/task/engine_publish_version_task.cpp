@@ -33,6 +33,7 @@ EnginePublishVersionTask::EnginePublishVersionTask(TPublishVersionRequest& publi
 OLAPStatus EnginePublishVersionTask::finish() {
     OLAPStatus res = OLAP_SUCCESS;
     int64_t transaction_id = _publish_version_req.transaction_id;
+    int64_t start_time = MonotonicNanos();
     LOG(INFO) << "begin to process publish version. transaction_id=" << transaction_id;
 
     // each partition
@@ -147,10 +148,10 @@ OLAPStatus EnginePublishVersionTask::finish() {
             }
         }
     }
-
+    int64_t total_cost = MonotonicNanos() - start_time;
     LOG(INFO) << "finish to publish version on transaction."
               << "transaction_id=" << transaction_id
-              << ", error_tablet_size=" << _error_tablet_ids->size();
+              << ", error_tablet_size=" << _error_tablet_ids->size() << " cost " << total_cost << "ms";
     return res;
 }
 
