@@ -87,7 +87,7 @@ std::string StreamLoadContext::to_json() const {
     writer.Key("ReceiveTimeCost");
     writer.Int64(receive_data_time_cost / 1000000);
     writer.Key("GetWriteDataCost");
-    writer.Key(get_write_data_cost / 1000000);
+    writer.Int64(get_write_data_cost / 1000000);
     writer.EndObject();
     return s.GetString();
 }
