@@ -46,7 +46,7 @@ public class PublishVersionDaemon extends MasterDaemon {
     private static final Logger LOG = LogManager.getLogger(PublishVersionDaemon.class);
     
     public PublishVersionDaemon() {
-        super("PUBLISH_VERSION", Config.publish_version_interval_ms);
+        super("PUBLISH_VERSION", 0);
     }
     
     @Override
@@ -58,10 +58,11 @@ public class PublishVersionDaemon extends MasterDaemon {
         }
     }
     
-    private void publishVersion() throws UserException {
+    private void publishVersion() throws UserException, InterruptedException {
         GlobalTransactionMgr globalTransactionMgr = Catalog.getCurrentGlobalTransactionMgr();
         List<TransactionState> readyTransactionStates = globalTransactionMgr.getReadyToPublishTransactions();
         if (readyTransactionStates == null || readyTransactionStates.isEmpty()) {
+            Thread.sleep(Config.publish_version_interval_ms);
             return;
         }
 

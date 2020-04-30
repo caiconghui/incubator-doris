@@ -509,6 +509,10 @@ namespace config {
     // this is a an enhancement for better performance to commit and publish txn
     CONF_Int32(txn_shard_size, "1024")
 
+    // stream_load thread pool
+    CONF_Int32(stream_load_pool_thread_num, "256");
+    CONF_Int32(stream_load_pool_queue_size, "1024");
+
 } // namespace config
 
 } // namespace doris
