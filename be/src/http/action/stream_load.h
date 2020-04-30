@@ -23,6 +23,7 @@
 #include "http/http_handler.h"
 #include "runtime/client_cache.h"
 #include "runtime/message_body_sink.h"
+#include "util/priority_thread_pool.hpp"
 
 namespace doris {
 
@@ -32,6 +33,9 @@ class StreamLoadContext;
 
 class StreamLoadAction : public HttpHandler {
 public:
+
+    typedef std::function<void (StreamLoadContext*)> HandleFinishCallback;
+
     StreamLoadAction(ExecEnv* exec_env);
     ~StreamLoadAction() override;
 
@@ -50,9 +54,11 @@ private:
     Status _data_saved_path(HttpRequest* req, std::string* file_path);
     Status _execute_plan_fragment(StreamLoadContext* ctx);
     Status _process_put(HttpRequest* http_req, StreamLoadContext* ctx);
+    void _finalize(HttpRequest* req, StreamLoadContext* ctx, HandleFinishCallback cb);
 
 private:
     ExecEnv* _exec_env;
+    PriorityThreadPool _thread_pool;
 };
 
 }

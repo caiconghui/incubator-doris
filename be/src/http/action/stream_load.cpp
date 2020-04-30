@@ -84,7 +84,9 @@ static bool is_format_support_streaming(TFileFormatType::type format) {
     }
 }
 
-StreamLoadAction::StreamLoadAction(ExecEnv* exec_env) : _exec_env(exec_env) {
+StreamLoadAction::StreamLoadAction(ExecEnv* exec_env) :
+        _exec_env(exec_env),
+        _thread_pool(config::stream_load_pool_thread_num, config::stream_load_pool_queue_size) {
     DorisMetrics::metrics()->register_metric("streaming_load_requests_total",
                                             &k_streaming_load_requests_total);
     DorisMetrics::metrics()->register_metric("streaming_load_bytes",
@@ -96,6 +98,7 @@ StreamLoadAction::StreamLoadAction(ExecEnv* exec_env) : _exec_env(exec_env) {
 }
 
 StreamLoadAction::~StreamLoadAction() {
+    _thread_pool.drain_and_shutdown();
 }
 
 void StreamLoadAction::handle(HttpRequest* req) {
@@ -103,35 +106,20 @@ void StreamLoadAction::handle(HttpRequest* req) {
     if (ctx == nullptr) {
         return;
     }
-
-    // status already set to fail
-    if (ctx->status.ok()) {
-        ctx->status = _handle(ctx);
-        if (!ctx->status.ok() && ctx->status.code() != TStatusCode::PUBLISH_TIMEOUT) {
-            LOG(WARNING) << "handle streaming load failed, id=" << ctx->id
-                << ", errmsg=" << ctx->status.get_error_msg();
+    ctx->ref();
+    auto finalize_cb = [] (StreamLoadContext* ctx) {
+        if (ctx->unref()) {
+            delete ctx;
         }
+    };
+
+    if (!_thread_pool.offer(boost::bind<void>(&StreamLoadAction::_finalize, this, req, ctx,
+                finalize_cb))) {
+        LOG(WARNING) << "submit stream load finalize task handle failed, id=" << ctx->id
+                     << ", directly execute it instead";
+        _finalize(req, ctx, finalize_cb);
     }
-    ctx->load_cost_nanos = MonotonicNanos() - ctx->start_nanos;
-
-    if (!ctx->status.ok() && ctx->status.code() != TStatusCode::PUBLISH_TIMEOUT) {
-        if (ctx->need_rollback) {
-            _exec_env->stream_load_executor()->rollback_txn(ctx);
-            ctx->need_rollback = false;
-        }
-        if (ctx->body_sink.get() != nullptr) {
-            ctx->body_sink->cancel();
-        }
-    }
-
-    auto str = ctx->to_json();
-    HttpChannel::send_reply(req, str);
-
-    // update statstics
-    k_streaming_load_requests_total.increment(1);
-    k_streaming_load_duration_ms.increment(ctx->load_cost_nanos / 1000000);
-    k_streaming_load_bytes.increment(ctx->receive_bytes);
-    k_streaming_load_current_processing.increment(-1);
+    LOG(INFO) << "submit stream load finalize task handle succeed, id=" << ctx->id;
 }
 
 Status StreamLoadAction::_handle(StreamLoadContext* ctx) {
@@ -153,8 +141,8 @@ Status StreamLoadAction::_handle(StreamLoadContext* ctx) {
 
     // wait stream load finish
     RETURN_IF_ERROR(ctx->future.get());
-    ctx->write_data_cost_nanos = ctx->write_data_cost_nanos - MonotonicNanos();
-    int start_time = MonotonicNanos();
+    ctx->write_data_cost_nanos = MonotonicNanos() - ctx->write_data_cost_nanos;
+    int64_t start_time = MonotonicNanos();
     // If put file succeess we need commit this load
     RETURN_IF_ERROR(_exec_env->stream_load_executor()->commit_txn(ctx));
     ctx->commit_and_publish_txn_cost_nanos = MonotonicNanos() - start_time;
@@ -415,6 +403,41 @@ Status StreamLoadAction::_data_saved_path(HttpRequest* req, std::string* file_pa
     ss << prefix << "/" << req->param(HTTP_TABLE_KEY) << "." << buf << "." << tv.tv_usec;
     *file_path = ss.str();
     return Status::OK();
+}
+
+void StreamLoadAction::_finalize(HttpRequest* req, doris::StreamLoadContext* ctx, HandleFinishCallback cb) {
+    evhttp_request_own(req->get_evhttp_request());
+    // status already set to fail
+    if (ctx->status.ok()) {
+        ctx->status = _handle(ctx);
+        if (!ctx->status.ok() && ctx->status.code() != TStatusCode::PUBLISH_TIMEOUT) {
+            LOG(WARNING) << "handle streaming load failed, id=" << ctx->id
+                         << ", errmsg=" << ctx->status.get_error_msg();
+        }
+    }
+    ctx->load_cost_nanos = MonotonicNanos() - ctx->start_nanos;
+
+    if (!ctx->status.ok() && ctx->status.code() != TStatusCode::PUBLISH_TIMEOUT) {
+        if (ctx->need_rollback) {
+            _exec_env->stream_load_executor()->rollback_txn(ctx);
+            ctx->need_rollback = false;
+        }
+        if (ctx->body_sink.get() != nullptr) {
+            ctx->body_sink->cancel();
+        }
+    }
+
+    auto str = ctx->to_json();
+    HttpChannel::send_reply(req, str);
+
+    // update statstics
+    k_streaming_load_requests_total.increment(1);
+    k_streaming_load_duration_ms.increment(ctx->load_cost_nanos / 1000000);
+    k_streaming_load_bytes.increment(ctx->receive_bytes);
+    k_streaming_load_current_processing.increment(-1);
+
+    cb(ctx);
+    LOG(INFO) << "end to finish request finalize " << ctx->id;
 }
 
 }
