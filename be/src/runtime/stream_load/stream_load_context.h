@@ -168,9 +168,12 @@ public:
     int64_t start_nanos = 0;
     int64_t load_cost_nanos = 0;
     int64_t begin_txn_cost_nanos = 0;
+    int64_t on_header_cost_nanos = 0;
     int64_t commit_and_publish_txn_cost_nanos = 0;
     int64_t stream_load_plan_cost_nanos = 0;
     int64_t write_data_cost_nanos = 0;
+    int64_t receive_data_time_cost = 0;
+    int64_t get_write_data_cost = 0;
     std::string error_url = "";
     // if label already be used, set existing job's status here
     // should be RUNNING or FINISHED

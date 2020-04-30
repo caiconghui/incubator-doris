@@ -82,6 +82,12 @@ std::string StreamLoadContext::to_json() const {
     writer.Int64(write_data_cost_nanos / 1000000);
     writer.Key("CommitTxnCost");
     writer.Int64(commit_and_publish_txn_cost_nanos / 1000000);
+    writer.Key("OnHeaderCost");
+    writer.Int64(on_header_cost_nanos / 1000000);
+    writer.Key("ReceiveTimeCost");
+    writer.Int64(receive_data_time_cost / 1000000);
+    writer.Key("GetWriteDataCost");
+    writer.Key(get_write_data_cost / 1000000);
     writer.EndObject();
     return s.GetString();
 }

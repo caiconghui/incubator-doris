@@ -184,6 +184,7 @@ int StreamLoadAction::on_header(HttpRequest* req) {
         k_streaming_load_current_processing.increment(-1);
         return -1;
     }
+    ctx->on_header_cost_nanos = MonotonicNanos() - ctx->start_nanos;
     return 0;
 }
 
@@ -246,7 +247,9 @@ void StreamLoadAction::on_chunk_data(HttpRequest* req) {
     if (ctx == nullptr || !ctx->status.ok()) {
         return;
     }
-
+    LOG(INFO) << "on chunck data begin to process with ctx brief " << ctx->brief();
+    ctx->receive_data_time_cost = MonotonicNanos() - ctx->start_nanos;
+    int64_t start_time = MonotonicNanos();
     struct evhttp_request* ev_req = req->get_evhttp_request();
     auto evbuf = evhttp_request_get_input_buffer(ev_req);
 
@@ -264,6 +267,7 @@ void StreamLoadAction::on_chunk_data(HttpRequest* req) {
         }
         ctx->receive_bytes += remove_bytes;
     }
+    ctx->get_write_data_cost = MonotonicNanos() - start_time;
 }
 
 void StreamLoadAction::free_handler_ctx(void* param) {
