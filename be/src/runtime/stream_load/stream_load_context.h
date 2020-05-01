@@ -151,12 +151,17 @@ public:
 
     std::shared_ptr<MessageBodySink> body_sink;
 
+    std::string path;
+
     TStreamLoadPutResult put_result;
 
     std::vector<TTabletCommitInfo> commit_infos;
 
     std::promise<Status> promise;
     std::future<Status> future = promise.get_future();
+
+    std::promise<Status> process_put_promise;
+    std::future<Status>  process_put_future = process_put_promise.get_future();
 
     Status status;
 

@@ -106,20 +106,20 @@ void StreamLoadAction::handle(HttpRequest* req) {
     if (ctx == nullptr) {
         return;
     }
-    ctx->ref();
+
     auto finalize_cb = [] (StreamLoadContext* ctx) {
         if (ctx->unref()) {
             delete ctx;
         }
     };
 
+    ctx->ref();
     if (!_thread_pool.offer(boost::bind<void>(&StreamLoadAction::_finalize, this, req, ctx,
                 finalize_cb))) {
         LOG(WARNING) << "submit stream load finalize task handle failed, id=" << ctx->id
                      << ", directly execute it instead";
         _finalize(req, ctx, finalize_cb);
     }
-    LOG(INFO) << "submit stream load finalize task handle succeed, id=" << ctx->id;
 }
 
 Status StreamLoadAction::_handle(StreamLoadContext* ctx) {
@@ -129,6 +129,8 @@ Status StreamLoadAction::_handle(StreamLoadContext* ctx) {
             << ", id=" << ctx->id;
         return Status::InternalError("receive body dont't equal with body bytes");
     }
+    // wait process put finish
+    RETURN_IF_ERROR(ctx->process_put_future.get());
     if (!ctx->use_streaming) {
         // if we use non-streaming, we need to close file first,
         // then execute_plan_fragment here
@@ -168,12 +170,34 @@ int StreamLoadAction::on_header(HttpRequest* req) {
 
     LOG(INFO) << "new income streaming load request." << ctx->brief()
               << ", db=" << ctx->db << ", tbl=" << ctx->table;
-    if (!_thread_pool.offer(boost::bind<void>(&StreamLoadAction::_process_header, this, req, ctx))) {
-        LOG(WARNING) << "submit stream load process header task handle failed, id=" << ctx->id
-                     << ", directly execute it instead";
-        _process_header(req, ctx);
+
+    auto st = _on_header(req, ctx);
+    if (!st.ok()) {
+        ctx->status = st;
+        if (ctx->body_sink.get() != nullptr) {
+            ctx->body_sink->cancel();
+        }
+        auto str = ctx->to_json();
+        HttpChannel::send_reply(req, str);
+        k_streaming_load_current_processing.increment(-1);
+        return -1;
     }
-    LOG(INFO) << "submit stream load process header task handle succeed, id=" << ctx->id;
+
+    auto process_put = [this](HttpRequest* http_req, StreamLoadContext* ctx) {
+        auto st = _process_put(http_req, ctx);
+        ctx->process_put_promise.set_value(st);
+        if (ctx->unref()) {
+            delete ctx;
+        }
+    };
+
+    ctx->ref();
+    if (!_thread_pool.offer(boost::bind<void>(process_put, req, ctx))) {
+        LOG(WARNING) << "submit stream load process put task handle failed, id=" << ctx->id
+                     << ", directly execute it instead";
+        process_put(req, ctx);
+    }
+
     return 0;
 }
 
@@ -223,12 +247,20 @@ Status StreamLoadAction::_on_header(HttpRequest* http_req, StreamLoadContext* ct
         }
     }
 
-    int64_t start_time = MonotonicNanos();
-    // begin transaction
-    RETURN_IF_ERROR(_exec_env->stream_load_executor()->begin_txn(ctx));
-    ctx->begin_txn_cost_nanos = MonotonicNanos() - start_time;
-    // process put file
-    return _process_put(http_req, ctx);
+    ctx->use_streaming = is_format_support_streaming(ctx->format);
+
+    if (ctx->use_streaming) {
+        auto pipe = std::make_shared<StreamLoadPipe>();
+        RETURN_IF_ERROR(_exec_env->load_stream_mgr()->put(ctx->id, pipe));
+        ctx->body_sink = pipe;
+    } else {
+        RETURN_IF_ERROR(_data_saved_path(http_req, &ctx->path));
+        auto file_sink = std::make_shared<MessageBodyFileSink>(ctx->path);
+        RETURN_IF_ERROR(file_sink->open());
+        ctx->body_sink = file_sink;
+    }
+
+    return Status::OK();
 }
 
 void StreamLoadAction::on_chunk_data(HttpRequest* req) {
@@ -236,12 +268,10 @@ void StreamLoadAction::on_chunk_data(HttpRequest* req) {
     if (ctx == nullptr || !ctx->status.ok()) {
         return;
     }
-    LOG(INFO) << "on chunck data begin to process with ctx brief " << ctx->brief();
     ctx->receive_data_time_cost = MonotonicNanos() - ctx->start_nanos;
     int64_t start_time = MonotonicNanos();
     struct evhttp_request* ev_req = req->get_evhttp_request();
     auto evbuf = evhttp_request_get_input_buffer(ev_req);
-
     while (evbuffer_get_length(evbuf) > 0) {
         auto bb = ByteBuffer::allocate(4096);
         auto remove_bytes = evbuffer_remove(evbuf, bb->ptr, bb->capacity);
@@ -274,8 +304,10 @@ void StreamLoadAction::free_handler_ctx(void* param) {
 }
 
 Status StreamLoadAction::_process_put(HttpRequest* http_req, StreamLoadContext* ctx) {
-    // Now we use stream
-    ctx->use_streaming = is_format_support_streaming(ctx->format);
+    int64_t start_time = MonotonicNanos();
+    // begin transaction
+    RETURN_IF_ERROR(_exec_env->stream_load_executor()->begin_txn(ctx));
+    ctx->begin_txn_cost_nanos = MonotonicNanos() - start_time;
 
     // put request
     TStreamLoadPutRequest request;
@@ -286,17 +318,10 @@ Status StreamLoadAction::_process_put(HttpRequest* http_req, StreamLoadContext* 
     request.formatType = ctx->format;
     request.__set_loadId(ctx->id.to_thrift());
     if (ctx->use_streaming) {
-        auto pipe = std::make_shared<StreamLoadPipe>();
-        RETURN_IF_ERROR(_exec_env->load_stream_mgr()->put(ctx->id, pipe));
         request.fileType = TFileType::FILE_STREAM;
-        ctx->body_sink = pipe;
     } else {
-        RETURN_IF_ERROR(_data_saved_path(http_req, &request.path));
-        auto file_sink = std::make_shared<MessageBodyFileSink>(request.path);
-        RETURN_IF_ERROR(file_sink->open());
         request.__isset.path = true;
         request.fileType = TFileType::FILE_LOCAL;
-        ctx->body_sink = file_sink;
     }
     if (!http_req->header(HTTP_COLUMNS).empty()) {
         request.__set_columns(http_req->header(HTTP_COLUMNS));
@@ -313,14 +338,14 @@ Status StreamLoadAction::_process_put(HttpRequest* http_req, StreamLoadContext* 
         if (!http_req->header(HTTP_TEMP_PARTITIONS).empty()) {
             return Status::InvalidArgument("Can not specify both partitions and temporary partitions");
         }
-    } 
+    }
     if (!http_req->header(HTTP_TEMP_PARTITIONS).empty()) {
         request.__set_partitions(http_req->header(HTTP_TEMP_PARTITIONS));
         request.__set_isTempPartition(true);
         if (!http_req->header(HTTP_PARTITIONS).empty()) {
             return Status::InvalidArgument("Can not specify both partitions and temporary partitions");
         }
-    } 
+    }
     if (!http_req->header(HTTP_NEGATIVE).empty() && http_req->header(HTTP_NEGATIVE) == "true") {
         request.__set_negative(true);
     } else {
@@ -356,7 +381,7 @@ Status StreamLoadAction::_process_put(HttpRequest* http_req, StreamLoadContext* 
     if (!http_req->header(HTTP_MAX_FILTER_RATIO).empty()) {
         ctx->max_filter_ratio = strtod(http_req->header(HTTP_MAX_FILTER_RATIO).c_str(), nullptr);
     }
-    int64_t start_time = MonotonicNanos();
+    start_time = MonotonicNanos();
     RETURN_IF_ERROR(ThriftRpcHelper::rpc<FrontendServiceClient>(
             master_addr.hostname, master_addr.port,
             [&request, ctx] (FrontendServiceConnection& client) {
@@ -398,26 +423,7 @@ Status StreamLoadAction::_data_saved_path(HttpRequest* req, std::string* file_pa
     return Status::OK();
 }
 
-void StreamLoadAction::_process_header(HttpRequest* req, StreamLoadContext* ctx) {
-    auto st = _on_header(req, ctx);
-    if (!st.ok()) {
-        ctx->status = st;
-        if (ctx->need_rollback) {
-            _exec_env->stream_load_executor()->rollback_txn(ctx);
-            ctx->need_rollback = false;
-        }
-        if (ctx->body_sink.get() != nullptr) {
-            ctx->body_sink->cancel();
-        }
-        auto str = ctx->to_json();
-        HttpChannel::send_reply(req, str);
-        k_streaming_load_current_processing.increment(-1);
-    }
-    ctx->on_header_cost_nanos = MonotonicNanos() - ctx->start_nanos;
-}
-
 void StreamLoadAction::_finalize(HttpRequest* req, StreamLoadContext* ctx, HandleFinishCallback cb) {
-    evhttp_request_own(req->get_evhttp_request());
     // status already set to fail
     if (ctx->status.ok()) {
         ctx->status = _handle(ctx);
@@ -448,7 +454,6 @@ void StreamLoadAction::_finalize(HttpRequest* req, StreamLoadContext* ctx, Handl
     k_streaming_load_current_processing.increment(-1);
 
     cb(ctx);
-    LOG(INFO) << "end to finish request finalize " << ctx->id;
 }
 
 }

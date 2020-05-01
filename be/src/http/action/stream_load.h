@@ -54,7 +54,6 @@ private:
     Status _data_saved_path(HttpRequest* req, std::string* file_path);
     Status _execute_plan_fragment(StreamLoadContext* ctx);
     Status _process_put(HttpRequest* http_req, StreamLoadContext* ctx);
-    void _process_header(HttpRequest* req, StreamLoadContext* ctx);
     void _finalize(HttpRequest* req, StreamLoadContext* ctx, HandleFinishCallback cb);
 
 private:
