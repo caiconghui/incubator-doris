@@ -22,6 +22,7 @@
 #include "common/logging.h"
 #include "service/brpc.h"
 #include "service/internal_service.h"
+#include "service/http_service_demo.h"
 
 
 namespace brpc {
@@ -50,6 +51,8 @@ Status BRpcService::start(int port) {
                         brpc::SERVER_OWNS_SERVICE);
     _server->AddService(new PInternalServiceImpl<palo::PInternalService>(_exec_env),
                         brpc::SERVER_OWNS_SERVICE);
+    _server->AddService(new HttpServiceDemoImpl(),
+                        brpc::SERVER_DOESNT_OWN_SERVICE);
     // start service
     brpc::ServerOptions options;
     if (_server->Start(port, &options) != 0) {

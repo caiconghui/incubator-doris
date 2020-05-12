@@ -26,8 +26,7 @@ add_library(Service
     backend_service.cpp
     brpc_service.cpp
     http_service.cpp
-    internal_service.cpp
-)
+    internal_service.cpp http_service_demo.cpp)
 
 add_executable(palo_be
     doris_main.cpp
