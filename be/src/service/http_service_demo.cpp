@@ -33,7 +33,8 @@ void HttpServiceDemoImpl::Echo(google::protobuf::RpcController* cntl_base,
 
         brpc::ClosureGuard done_guard(done);
         brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
-
+        sleep(5);
+        LOG(INFO) << "execute echo for http request";
         // body是纯文本
         cntl->http_response().set_content_type("text/plain");
 
