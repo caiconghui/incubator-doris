@@ -33,7 +33,6 @@ void HttpServiceDemoImpl::Echo(google::protobuf::RpcController* cntl_base,
 
         brpc::ClosureGuard done_guard(done);
         brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
-        sleep(5);
         LOG(INFO) << "execute echo for http request";
         // body是纯文本
         cntl->http_response().set_content_type("text/plain");
@@ -45,7 +44,11 @@ void HttpServiceDemoImpl::Echo(google::protobuf::RpcController* cntl_base,
             it != cntl->http_request().uri().QueryEnd(); ++it) {
             os << ' ' << it->first << '=' << it->second;
         }
-        os << "\nbody: " << cntl->request_attachment() << '\n';
+
+        cntl->request_attachment().size();
+        os << "\nbody: " << cntl->http_request().unresolved_path() << "\n" <<
+        "size " << cntl->request_attachment().size() << "\n" <<
+        cntl->request_attachment() << '\n';
         os.move_to(cntl->response_attachment());
     }
 }
