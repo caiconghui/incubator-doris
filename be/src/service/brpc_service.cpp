@@ -51,7 +51,7 @@ Status BRpcService::start(int port) {
                         brpc::SERVER_OWNS_SERVICE);
     _server->AddService(new PInternalServiceImpl<palo::PInternalService>(_exec_env),
                         brpc::SERVER_OWNS_SERVICE);
-    _server->AddService(new HttpServiceDemoImpl(),
+    _server->AddService(new HttpServiceDemoImpl(_exec_env),
                         brpc::SERVER_DOESNT_OWN_SERVICE,
                         "/api/*/_stream_load => Echo");
     // start service

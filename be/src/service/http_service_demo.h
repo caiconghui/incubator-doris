@@ -16,14 +16,19 @@
 // under the License.
 
 #pragma once
+
+#include <common/utils.h>
 #include "gen_cpp/http_service.pb.h"
+#include "service/brpc.h"
 
 namespace doris {
+    class ExecEnv;
+
     class HttpServiceDemoImpl : public doris_demo::HttpService {
 
     public :
 
-        HttpServiceDemoImpl();
+        HttpServiceDemoImpl(ExecEnv *exec_env);
 
         virtual ~HttpServiceDemoImpl();
 
@@ -31,5 +36,10 @@ namespace doris {
                           const doris_demo::HttpRequest * /*request*/,
                           doris_demo::HttpResponse * /*response*/,
                           google::protobuf::Closure *done) override;
+    private :
+        ExecEnv *_exec_env;
+
+        bool parse_basic_auth(brpc::Controller* cntl, AuthInfo* auth);
+        bool parse_basic_auth(brpc::HttpHeader &header, std::string* user, std::string* passwd);
     };
 }

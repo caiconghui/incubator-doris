@@ -16,6 +16,8 @@
 // under the License.
 
 #pragma once
+#ifndef STREAM_LOAD_CONTEXT_H
+#define STREAM_LOAD_CONTEXT_H
 
 #include <future>
 #include <sstream>
@@ -187,3 +189,4 @@ private:
 };
 
 } // end namespace
+#endif
