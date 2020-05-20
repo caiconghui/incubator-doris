@@ -18,6 +18,8 @@
 #pragma once
 
 #include <common/utils.h>
+#include <common/status.h>
+#include <runtime/stream_load/stream_load_context.h>
 #include "gen_cpp/http_service.pb.h"
 #include "service/brpc.h"
 
@@ -41,5 +43,11 @@ namespace doris {
 
         bool parse_basic_auth(brpc::Controller* cntl, AuthInfo* auth);
         bool parse_basic_auth(brpc::HttpHeader &header, std::string* user, std::string* passwd);
+
+        void free_handler_ctx(void* ctx);
+        Status _on_header(brpc::Controller* cntl, StreamLoadContext* ctx);
+        Status _handle(StreamLoadContext* ctx);
+        Status _data_saved_path(StreamLoadContext* ctx, std::string* file_path);
+        Status _process_put(brpc::Controller* cntl, StreamLoadContext* ctx);
     };
 }
