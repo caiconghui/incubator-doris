@@ -94,6 +94,7 @@ void HttpServiceDemoImpl::Echo(google::protobuf::RpcController* cntl_base,
             }
         }
         LOG(INFO) << "finish on header";
+        int64_t begin_read_buffer = MonotonicNanos();
         if (st.ok()) {
             while (ctx->receive_bytes < cntl->request_attachment().size()) {
                 LOG(WARNING) << "total size " << cntl->request_attachment().size();
@@ -112,6 +113,7 @@ void HttpServiceDemoImpl::Echo(google::protobuf::RpcController* cntl_base,
                 LOG(WARNING) << "copy remove bytes " << remove_bytes << " receive bytes " << ctx->receive_bytes << " total size " << cntl->request_attachment().size() ;
             }
         }
+        ctx->read_buffer_cost_nanos = MonotonicNanos() - begin_read_buffer;
         LOG(INFO) << "finish on chunk";
         // status already set to fail
         if (ctx->status.ok()) {
@@ -140,17 +142,7 @@ void HttpServiceDemoImpl::Echo(google::protobuf::RpcController* cntl_base,
             os << ' ' << it->first << '=' << it->second;
         }
 
-        auto iter = cntl->http_request().HeaderBegin();
-        while (iter != cntl->http_request().HeaderEnd()) {
-            os << (*iter).first << " " << (*iter).second << " \n";
-            iter++;
-        }
-        LOG(INFO) << "finish print header";
-        os << "\nbody: " << cntl->http_request().unresolved_path() << "\n" <<
-        "size " << cntl->request_attachment().size() << "\n" <<
-        "db " << ctx->db << " table " << ctx->table << " \n" <<
-        "method " << cntl->http_request().method() << "\n" <<
-        ctx->to_json() << ctx->auth.user << " " << ctx->auth.passwd << " " << ctx->auth.user_ip << '\n';
+        os << ctx->to_json();
         os.move_to(cntl->response_attachment());
         free_handler_ctx(ctx);
     }
@@ -253,9 +245,10 @@ Status HttpServiceDemoImpl::_on_header(brpc::Controller* cntl, StreamLoadContext
         }
     }
 
+    int64_t start_begin_txn = MonotonicNanos();
     // begin transaction
     RETURN_IF_ERROR(_exec_env->stream_load_executor()->begin_txn(ctx));
-
+    ctx->begin_txn_cost_nanos = MonotonicNanos() - start_begin_txn;
     // process put file
     return _process_put(cntl, ctx);
 }
@@ -279,11 +272,11 @@ Status HttpServiceDemoImpl::_handle(StreamLoadContext* ctx) {
 
     // wait stream load finish
     RETURN_IF_ERROR(ctx->future.get());
-
+    int64_t begin_commit_and_publish = MonotonicNanos();
     // If put file succeess we need commit this load
-    RETURN_IF_ERROR(_exec_env->stream_load_executor()->commit_txn(ctx));
-
-    return Status::OK();
+    auto st = _exec_env->stream_load_executor()->commit_txn(ctx);
+    ctx->commit_and_publish_cost_nanos = MonotonicNanos() - begin_commit_and_publish;
+    return st;
 }
 Status HttpServiceDemoImpl::_data_saved_path(StreamLoadContext* ctx, std::string* file_path) {
     std::string prefix;
@@ -388,7 +381,7 @@ Status HttpServiceDemoImpl::_process_put(brpc::Controller* cntl, StreamLoadConte
     if (http_req.GetHeader(HTTP_MAX_FILTER_RATIO) != NULL) {
         ctx->max_filter_ratio = strtod((*http_req.GetHeader(HTTP_MAX_FILTER_RATIO)).c_str(), nullptr);
     }
-
+    int64_t begin_stream_load_put = MonotonicNanos();
     RETURN_IF_ERROR(ThriftRpcHelper::rpc<FrontendServiceClient>(
             master_addr.hostname, master_addr.port,
             [&request, ctx] (FrontendServiceConnection& client) {
@@ -397,6 +390,7 @@ Status HttpServiceDemoImpl::_process_put(brpc::Controller* cntl, StreamLoadConte
 #else
     ctx->put_result = k_stream_load_put_result;
 #endif
+    ctx->stream_load_put_cost_nanos = MonotonicNanos() - begin_stream_load_put;
     Status plan_status(ctx->put_result.status);
     if (!plan_status.ok()) {
         LOG(WARNING) << "plan streaming load failed. errmsg=" << plan_status.get_error_msg()

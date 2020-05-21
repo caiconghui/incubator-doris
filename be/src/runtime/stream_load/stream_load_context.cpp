@@ -70,6 +70,14 @@ std::string StreamLoadContext::to_json() const {
     writer.Int64(receive_bytes);
     writer.Key("LoadTimeMs");
     writer.Int64(load_cost_nanos / 1000000);
+    writer.Key("BeginTxnMs");
+    writer.Int64(begin_txn_cost_nanos / 1000000);
+    writer.Key("ReadBufferMs");
+    writer.Int64(read_buffer_cost_nanos / 1000000);
+    writer.Key("StreamLoadPutMs");
+    writer.Int64(stream_load_put_cost_nanos / 1000000);
+    writer.Key("CommitAndPublishMs");
+    writer.Int64(commit_and_publish_cost_nanos / 1000000);
     if (!error_url.empty()) {
         writer.Key("ErrorURL");
         writer.String(error_url.c_str());
