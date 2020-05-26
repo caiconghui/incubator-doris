@@ -808,6 +808,7 @@ public class FrontendServiceImpl implements FrontendService.Iface {
 
     @Override
     public TStreamLoadPutResult streamLoadPut(TStreamLoadPutRequest request) throws TException {
+        long startTime = System.currentTimeMillis();
         String clientAddr = getClientAddrAsString();
         LOG.info("receive stream load put request. db:{}, tbl: {}, txn id: {}, load id: {}, backend: {}",
                  request.getDb(), request.getTbl(), request.getTxnId(), DebugUtil.printId(request.getLoadId()),
@@ -829,10 +830,13 @@ public class FrontendServiceImpl implements FrontendService.Iface {
             status.addToError_msgs(Strings.nullToEmpty(e.getMessage()));
             return result;
         }
+        long cost = System.currentTimeMillis() - startTime;
+        LOG.info("receive stream load put request cost " + cost + "  ms");
         return result;
     }
 
     private TExecPlanFragmentParams streamLoadPutImpl(TStreamLoadPutRequest request) throws UserException {
+        long startTime = System.currentTimeMillis();
         String cluster = request.getCluster();
         if (Strings.isNullOrEmpty(cluster)) {
             cluster = SystemInfoService.DEFAULT_CLUSTER;
@@ -848,8 +852,9 @@ public class FrontendServiceImpl implements FrontendService.Iface {
             }
             throw new UserException("unknown database, database=" + dbName);
         }
-
+        long beforeDbLockCost = System.currentTimeMillis() - startTime;
         db.readLock();
+        long afterDbLockCost = System.currentTimeMillis() - startTime;
         try {
             Table table = db.getTable(request.getTbl());
             if (table == null) {
@@ -871,6 +876,8 @@ public class FrontendServiceImpl implements FrontendService.Iface {
             return plan;
         } finally {
             db.readUnlock();
+            long streamLoadCost = System.currentTimeMillis() - startTime;
+            LOG.info("stream load put cost before db lock {} ms, after db lock {} ms, finish stream load put {} ms", beforeDbLockCost, afterDbLockCost, streamLoadCost);
         }
     }
 

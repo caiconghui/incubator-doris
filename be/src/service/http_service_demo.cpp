@@ -93,7 +93,7 @@ void HttpServiceDemoImpl::Echo(google::protobuf::RpcController* cntl_base,
                 ctx->body_sink->cancel();
             }
         }
-        LOG(INFO) << "finish on header";
+        LOG(WARNING) << "finish on header";
         int64_t begin_read_buffer = MonotonicNanos();
         if (st.ok()) {
             while (ctx->receive_bytes < cntl->request_attachment().size()) {
@@ -110,11 +110,11 @@ void HttpServiceDemoImpl::Echo(google::protobuf::RpcController* cntl_base,
                     return;
                 }
                 ctx->receive_bytes += remove_bytes;
-                LOG(WARNING) << "copy remove bytes " << remove_bytes << " receive bytes " << ctx->receive_bytes << " total size " << cntl->request_attachment().size() ;
+                LOG(WARNING) << ctx->txn_id << " copy remove bytes " << remove_bytes << " receive bytes " << ctx->receive_bytes << " total size " << cntl->request_attachment().size() ;
             }
         }
         ctx->read_buffer_cost_nanos = MonotonicNanos() - begin_read_buffer;
-        LOG(INFO) << "finish on chunk";
+        LOG(WARNING) << "finish on chunk cost " << (ctx->read_buffer_cost_nanos / 1000000) << " ms";
         // status already set to fail
         if (ctx->status.ok()) {
             ctx->status = _handle(ctx);
@@ -137,10 +137,10 @@ void HttpServiceDemoImpl::Echo(google::protobuf::RpcController* cntl_base,
         LOG(INFO) << "publish finish";
         // 把请求的query-string和body打印结果作为回复内容。
         butil::IOBufBuilder os;
-        for (brpc::URI::QueryIterator it = cntl->http_request().uri().QueryBegin();
-            it != cntl->http_request().uri().QueryEnd(); ++it) {
-            os << ' ' << it->first << '=' << it->second;
-        }
+//        for (brpc::URI::QueryIterator it = cntl->http_request().uri().QueryBegin();
+//            it != cntl->http_request().uri().QueryEnd(); ++it) {
+//            os << ' ' << it->first << '=' << it->second;
+//        }
 
         os << ctx->to_json();
         os.move_to(cntl->response_attachment());
@@ -254,6 +254,7 @@ Status HttpServiceDemoImpl::_on_header(brpc::Controller* cntl, StreamLoadContext
 }
 
 Status HttpServiceDemoImpl::_handle(StreamLoadContext* ctx) {
+    int64_t write_buffer_begin = MonotonicNanos();
     if (ctx->body_bytes > 0 && ctx->receive_bytes != ctx->body_bytes) {
         LOG(WARNING) << "recevie body don't equal with body bytes, body_bytes="
                      << ctx->body_bytes << ", receive_bytes=" << ctx->receive_bytes
@@ -272,6 +273,7 @@ Status HttpServiceDemoImpl::_handle(StreamLoadContext* ctx) {
 
     // wait stream load finish
     RETURN_IF_ERROR(ctx->future.get());
+    ctx->write_buffer_cost_nanos = MonotonicNanos() - write_buffer_begin;
     int64_t begin_commit_and_publish = MonotonicNanos();
     // If put file succeess we need commit this load
     auto st = _exec_env->stream_load_executor()->commit_txn(ctx);

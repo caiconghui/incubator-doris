@@ -74,6 +74,8 @@ std::string StreamLoadContext::to_json() const {
     writer.Int64(begin_txn_cost_nanos / 1000000);
     writer.Key("ReadBufferMs");
     writer.Int64(read_buffer_cost_nanos / 1000000);
+    writer.Key("WriteBufferMs");
+    writer.Int64(write_buffer_cost_nanos / 1000000);
     writer.Key("StreamLoadPutMs");
     writer.Int64(stream_load_put_cost_nanos / 1000000);
     writer.Key("CommitAndPublishMs");

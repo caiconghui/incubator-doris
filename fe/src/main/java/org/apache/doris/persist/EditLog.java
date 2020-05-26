@@ -823,6 +823,7 @@ public class EditLog {
         if (MetricRepo.isInit.get()) {
             MetricRepo.HISTO_EDIT_LOG_WRITE_LATENCY.update((end - start));
         }
+        LOG.warn("write edit log latency {} ms", end - start);
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("nextId = {}, numTransactions = {}, totalTimeTransactions = {}, op = {}",

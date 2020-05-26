@@ -172,6 +172,7 @@ public:
     int64_t begin_txn_cost_nanos = 0;
     int64_t stream_load_put_cost_nanos = 0;
     int64_t read_buffer_cost_nanos = 0;
+    int64_t write_buffer_cost_nanos = 0;
     int64_t commit_and_publish_cost_nanos = 0;
     std::string error_url = "";
     // if label already be used, set existing job's status here

@@ -494,12 +494,15 @@ public class GlobalTransactionMgr implements Writable {
             List<TabletCommitInfo> tabletCommitInfos, long timeoutMillis,
             TxnCommitAttachment txnCommitAttachment)
             throws UserException {
+        long currentTime = System.currentTimeMillis();
         db.writeLock();
+        long afterdbWriteLock = System.currentTimeMillis() - currentTime;
         try {
             commitTransaction(db.getId(), transactionId, tabletCommitInfos, txnCommitAttachment);
         } finally {
             db.writeUnlock();
         }
+        long commitTransactionCost = System.currentTimeMillis() - currentTime;
         
         TransactionState transactionState = idToTransactionState.get(transactionId);
         switch (transactionState.getTransactionStatus()) {
@@ -510,7 +513,7 @@ public class GlobalTransactionMgr implements Writable {
                 LOG.warn("transaction commit failed, db={}, txn={}", db.getFullName(), transactionId);
                 throw new TransactionCommitFailedException("transaction commit failed");
         }
-        
+        long getTxnCost = System.currentTimeMillis() - currentTime;
         long currentTimeMillis = System.currentTimeMillis();
         long timeoutTimeMillis = currentTimeMillis + timeoutMillis;
         while (currentTimeMillis < timeoutTimeMillis &&
@@ -521,6 +524,9 @@ public class GlobalTransactionMgr implements Writable {
             }
             currentTimeMillis = System.currentTimeMillis();
         }
+        long waitVisiableCost = System.currentTimeMillis() - currentTime;
+        LOG.warn("commit and publish : get db lock cost {} ms, commit cost {} ms, get txn cost {} ms, wait visiable cost {} ms",
+                afterdbWriteLock, commitTransactionCost, getTxnCost, waitVisiableCost);
         return transactionState.getTransactionStatus() == TransactionStatus.VISIBLE;
     }
 
@@ -956,8 +962,10 @@ public class GlobalTransactionMgr implements Writable {
             transactionState.putIdToTableCommitInfo(tableId, tableCommitInfo);
         }
         // persist transactionState
+        long currentTime = System.currentTimeMillis();
         unprotectUpsertTransactionState(transactionState);
-
+        long cost = System.currentTimeMillis() - currentTime;
+        LOG.warn("commmit log cost {} ms", cost);
         // add publish version tasks. set task to null as a placeholder.
         // tasks will be created when publishing version.
         for (long backendId : totalInvolvedBackends) {
