@@ -513,6 +513,8 @@ namespace config {
     // this is a an enhancement for better performance to commit and publish txn
     CONF_Int32(txn_shard_size, "1024")
 
+    CONF_Int32(brpc_num_threads, "2048");
+
 } // namespace config
 
 } // namespace doris

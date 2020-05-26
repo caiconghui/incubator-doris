@@ -75,7 +75,7 @@ public class ThriftServer {
     private void createThreadPoolServer() throws TTransportException {
         TServerSocket.ServerSocketTransportArgs socketTransportArgs = new TServerSocket.ServerSocketTransportArgs()
             .bindAddr(new InetSocketAddress(port))
-            .clientTimeout(0)
+            .clientTimeout(15000)
             .backlog(Config.thrift_backlog_num);
 
         TThreadPoolServer.Args serverArgs =
