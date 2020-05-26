@@ -125,7 +125,7 @@ public class LoadAction extends RestBaseAction {
             throw new DdlException("No backend alive.");
         }
 
-        TNetworkAddress redirectAddr = new TNetworkAddress(backend.getHost(), backend.getBrpcPort());
+        TNetworkAddress redirectAddr = new TNetworkAddress(backend.getHost(), backend.getHttpPort());
 
         if (!isStreamLoad) {
             String subLabel = request.getSingleParameter(SUB_LABEL_NAME_PARAM);
