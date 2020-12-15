@@ -227,6 +227,8 @@ public class HttpServer {
                 // reused address and port to avoid bind already exception
                 serverBootstrap.option(ChannelOption.SO_REUSEADDR, true);
                 serverBootstrap.childOption(ChannelOption.SO_REUSEADDR, true);
+                serverBootstrap.option(ChannelOption.SO_RCVBUF, 1048576);
+                serverBootstrap.option(ChannelOption.SO_SNDBUF, 1048576);
                 serverBootstrap.group(bossGroup, workerGroup)
                         .channel(NioServerSocketChannel.class)
                         .childHandler(new PaloHttpServerInitializer());
