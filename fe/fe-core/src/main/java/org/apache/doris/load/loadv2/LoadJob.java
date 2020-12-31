@@ -90,7 +90,7 @@ public abstract class LoadJob extends AbstractTxnStateChangeCallback implements 
     // input params
     protected long dbId;
     protected String label;
-    protected volatile JobState state = JobState.PENDING;
+    protected JobState state = JobState.PENDING;
     protected EtlJobType jobType;
     // the auth info could be null when load job is created before commit named 'Persist auth info in load job'
     protected AuthorizationInfo authorizationInfo;
@@ -107,10 +107,10 @@ public abstract class LoadJob extends AbstractTxnStateChangeCallback implements 
 
     protected long createTimestamp = System.currentTimeMillis();
     protected long loadStartTimestamp = -1;
-    protected volatile long finishTimestamp = -1;
+    protected long finishTimestamp = -1;
 
     protected long transactionId;
-    protected volatile FailMsg failMsg;
+    protected FailMsg failMsg;
     protected Map<Long, LoadTask> idToTasks = Maps.newConcurrentMap();
     protected Set<Long> finishedTaskIds = Sets.newHashSet();
     protected EtlStatus loadingStatus = new EtlStatus();
