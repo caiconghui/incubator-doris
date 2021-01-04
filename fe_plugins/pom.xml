@@ -10,6 +10,7 @@
     <modules>
         <module>auditdemo</module>
         <module>auditloader</module>
+        <module>loadauditloader</module>
     </modules>
 
     <properties>
