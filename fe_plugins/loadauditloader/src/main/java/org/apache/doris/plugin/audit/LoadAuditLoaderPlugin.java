@@ -55,7 +55,7 @@ public class LoadAuditLoaderPlugin extends Plugin implements AuditPlugin {
     private StringBuilder auditBuffer = new StringBuilder();
     private long lastLoadTime = 0;
 
-    private BlockingQueue<StringBuilder> batchQueue = new LinkedBlockingDeque<StringBuilder>(1);
+    private BlockingQueue<LoadAuditEvent> batchQueue = new LinkedBlockingDeque<LoadAuditEvent>();
     private DorisStreamLoader streamLoader;
     private Thread loadThread;
 
@@ -69,7 +69,6 @@ public class LoadAuditLoaderPlugin extends Plugin implements AuditPlugin {
     @Override
     public void init(PluginInfo info, PluginContext ctx) throws PluginException {
         super.init(info, ctx);
-
         synchronized (this) {
             if (isInit) {
                 return;
@@ -79,7 +78,7 @@ public class LoadAuditLoaderPlugin extends Plugin implements AuditPlugin {
             loadConfig(ctx, info.getProperties());
 
             this.streamLoader = new DorisStreamLoader(conf);
-            this.loadThread = new Thread(new LoadWorker(this.streamLoader), "audit loader thread");
+            this.loadThread = new Thread(new LoadWorker(this.streamLoader), "load job audit loader thread");
             this.loadThread.start();
 
             isInit = true;
@@ -133,58 +132,40 @@ public class LoadAuditLoaderPlugin extends Plugin implements AuditPlugin {
     }
 
     public void exec(AuditEvent event) {
-        assembleAudit(event);
-        loadIfNecessary();
-    }
-
-    private void assembleAudit(AuditEvent event) {
         LoadAuditEvent loadAuidtEvent = (LoadAuditEvent) event;
-        auditBuffer.append(loadAuidtEvent.jobId).append("\t");
-        auditBuffer.append(loadAuidtEvent.label).append("\t");
-        auditBuffer.append(loadAuidtEvent.loadType).append("\t");
-        auditBuffer.append(loadAuidtEvent.db).append("\t");
-        auditBuffer.append(loadAuidtEvent.tableList).append("\t");
-        auditBuffer.append(loadAuidtEvent.filePathList).append("\t");
-        auditBuffer.append(loadAuidtEvent.brokerUser).append("\t");
-        auditBuffer.append(longToTimeString(loadAuidtEvent.timestamp)).append("\t");
-        auditBuffer.append(longToTimeString(loadAuidtEvent.loadStartTime)).append("\t");
-        auditBuffer.append(longToTimeString(loadAuidtEvent.loadFinishTime)).append("\t");
-        auditBuffer.append(loadAuidtEvent.scanRows).append("\t");
-        auditBuffer.append(loadAuidtEvent.scanBytes).append("\t");
-        auditBuffer.append(loadAuidtEvent.fileNumber).append("\t");
-        // trim the query to avoid too long
-        // use `getBytes().length` to get real byte length
-        int maxLen = Math.min(MAX_STMT_LENGTH, event.stmt.getBytes().length);
-        String stmt = new String(event.stmt.getBytes(), 0, maxLen).replace("\t", " ");
-        LOG.debug("receive audit event with stmt: {}", stmt);
-        auditBuffer.append(stmt).append("\n");
+        batchQueue.add(loadAuidtEvent);
     }
 
-    private void loadIfNecessary() {
+    private void assembleAudit(LoadAuditEvent event) {
+        auditBuffer.append(event.jobId).append("\t");
+        auditBuffer.append(event.label).append("\t");
+        auditBuffer.append(event.loadType).append("\t");
+        auditBuffer.append(event.db).append("\t");
+        auditBuffer.append(event.tableList).append("\t");
+        auditBuffer.append(event.filePathList).append("\t");
+        auditBuffer.append(event.brokerUser).append("\t");
+        auditBuffer.append(longToTimeString(event.timestamp)).append("\t");
+        auditBuffer.append(longToTimeString(event.loadStartTime)).append("\t");
+        auditBuffer.append(longToTimeString(event.loadFinishTime)).append("\t");
+        auditBuffer.append(event.scanRows).append("\t");
+        auditBuffer.append(event.scanBytes).append("\t");
+        auditBuffer.append(event.fileNumber).append("\n");
+    }
+
+    private void loadIfNecessary(DorisStreamLoader loader) {
         if (auditBuffer.length() < conf.maxBatchSize && System.currentTimeMillis() - lastLoadTime < conf.maxBatchIntervalSec * 1000) {
             return;
         }
-
         lastLoadTime = System.currentTimeMillis();
         // begin to load
         try {
-            if (!batchQueue.isEmpty()) {
-                // TODO(cmy): if queue is not empty, which means the last batch is not processed.
-                // In order to ensure that the system can run normally, here we directly
-                // discard the current batch. If this problem occurs frequently,
-                // improvement can be considered.
-                throw new PluginException("The previous batch is not processed, and the current batch is discarded.");
-            }
-
-            batchQueue.put(this.auditBuffer);
+            DorisStreamLoader.LoadResponse response = loader.loadBatch(auditBuffer);
         } catch (Exception e) {
-            LOG.debug("encounter exception when putting current audit batch, discard current batch", e);
+            LOG.warn("encounter exception when putting current audit batch, discard current batch", e);
         } finally {
             // make a new string builder to receive following events.
             this.auditBuffer = new StringBuilder();
         }
-
-        return;
     }
 
     public static class AuditLoaderConf {
@@ -245,16 +226,13 @@ public class LoadAuditLoaderPlugin extends Plugin implements AuditPlugin {
         public void run() {
             while (!isClosed) {
                 try {
-                    StringBuilder batch = batchQueue.poll(5, TimeUnit.SECONDS);
-                    if (batch == null) {
-                        continue;
+                    LoadAuditEvent event = batchQueue.poll(5, TimeUnit.SECONDS);
+                    if (event != null) {
+                        assembleAudit(event);
                     }
-
-                    DorisStreamLoader.LoadResponse response = loader.loadBatch(batch);
-                    LOG.debug("audit loader response: {}", response);
+                    loadIfNecessary(loader);
                 } catch (InterruptedException e) {
                     LOG.debug("encounter exception when loading current audit batch", e);
-                    continue;
                 }
             }
         }
