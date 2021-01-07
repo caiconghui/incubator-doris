@@ -23,7 +23,6 @@ import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
 import org.apache.doris.load.EtlStatus;
 import org.apache.doris.load.FailMsg;
-import org.apache.doris.qe.cache.Cache;
 import org.apache.doris.transaction.TransactionState;
 import org.apache.doris.transaction.TxnCommitAttachment;
 

@@ -691,7 +691,7 @@ public abstract class LoadJob extends AbstractTxnStateChangeCallback implements 
     protected void logFinalOperation() {
         Catalog.getCurrentCatalog().getEditLog().logEndLoadJob(
                 new LoadJobFinalOperation(id, loadingStatus, progress, loadStartTimestamp, finishTimestamp,
-                                          state, failMsg));
+                                          state, failMsg, loadStatistic));
     }
 
     public void unprotectReadEndOperation(LoadJobFinalOperation loadJobFinalOperation) {

@@ -302,7 +302,7 @@ public class BrokerLoadJob extends BulkLoadJob {
             Catalog.getCurrentGlobalTransactionMgr().commitTransaction(
                     dbId, transactionId, commitInfos,
                     new LoadJobFinalOperation(id, loadingStatus, progress, loadStartTimestamp,
-                                              finishTimestamp, state, failMsg));
+                                              finishTimestamp, state, failMsg, loadStatistic));
         } catch (UserException e) {
             LOG.warn(new LogBuilder(LogKey.LOAD_JOB, id)
                              .add("database_id", dbId)
