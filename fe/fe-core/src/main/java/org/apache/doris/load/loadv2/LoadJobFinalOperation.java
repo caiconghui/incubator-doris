@@ -105,7 +105,13 @@ public class LoadJobFinalOperation extends TxnCommitAttachment implements Writab
             out.writeBoolean(true);
             failMsg.write(out);
         }
-        loadStatistic.write(out);
+
+        // to be compatible with old version
+        if (loadStatistic != null) {
+            loadStatistic.write(out);
+        } else {
+            new LoadJob.LoadStatistic().write(out);
+        }
     }
 
     public void readFields(DataInput in) throws IOException {
