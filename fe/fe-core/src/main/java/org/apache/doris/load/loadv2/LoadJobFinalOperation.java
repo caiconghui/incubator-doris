@@ -90,6 +90,10 @@ public class LoadJobFinalOperation extends TxnCommitAttachment implements Writab
         return failMsg;
     }
 
+    public LoadJob.LoadStatistic getLoadStatistic() {
+        return loadStatistic;
+    }
+
     @Override
     public void write(DataOutput out) throws IOException {
         super.write(out);

@@ -701,6 +701,7 @@ public abstract class LoadJob extends AbstractTxnStateChangeCallback implements 
         finishTimestamp = loadJobFinalOperation.getFinishTimestamp();
         state = loadJobFinalOperation.getJobState();
         failMsg = loadJobFinalOperation.getFailMsg();
+        loadStatistic = loadJobFinalOperation.getLoadStatistic();
     }
 
     public List<Comparable> getShowInfo() throws DdlException {
