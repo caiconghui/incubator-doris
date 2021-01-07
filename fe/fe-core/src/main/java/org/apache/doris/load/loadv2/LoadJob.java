@@ -190,7 +190,6 @@ public abstract class LoadJob extends AbstractTxnStateChangeCallback implements 
             details.put("FileNumber", fileNum);
             details.put("FileSize", totalFileSizeB);
             details.put("TaskNumber", counterTbl.rowMap().size());
-            details.put("TaskNumber", counterTbl.rowMap().size());
             details.put("Unfinished backends", getPrintableMap(unfinishedBackendIds));
             details.put("All backends", getPrintableMap(allBackendIds));
             Gson gson = new Gson();
