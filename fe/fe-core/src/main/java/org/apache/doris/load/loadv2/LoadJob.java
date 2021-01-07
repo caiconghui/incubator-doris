@@ -140,15 +140,20 @@ public abstract class LoadJob extends AbstractTxnStateChangeCallback implements 
         // A load job may has several load tasks(queries), and each task has several fragments.
         // each fragment will report independently.
         // load task id -> fragment id -> rows count
+        @SerializedName(value = "counterTbl")
         private Table<TUniqueId, TUniqueId, Long> counterTbl = HashBasedTable.create();
 
         // load task id -> unfinished backend id list
+        @SerializedName(value = "unfinishedBackendIds")
         private Map<TUniqueId, List<Long>> unfinishedBackendIds = Maps.newHashMap();
         // load task id -> all backend id list
+        @SerializedName(value = "allBackendIds")
         private Map<TUniqueId, List<Long>> allBackendIds = Maps.newHashMap();
 
         // number of file to be loaded
+        @SerializedName(value = "fileNum")
         public int fileNum = 0;
+        @SerializedName(value = "totalFileSizeB")
         public long totalFileSizeB = 0;
 
         // init the statistic of specified load task
