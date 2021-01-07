@@ -135,7 +135,7 @@ public abstract class LoadJob extends AbstractTxnStateChangeCallback implements 
     // only for persistence param. see readFields() for usage
     private boolean isJobTypeRead = false;
 
-    public static class LoadStatistic {
+    public static class LoadStatistic implements Writable {
         // number of rows processed on BE, this number will be updated periodically by query report.
         // A load job may has several load tasks(queries), and each task has several fragments.
         // each fragment will report independently.
@@ -202,6 +202,17 @@ public abstract class LoadJob extends AbstractTxnStateChangeCallback implements 
                 newMap.put(DebugUtil.printId(entry.getKey()), entry.getValue());
             }
             return newMap;
+        }
+
+        @Override
+        public void write(DataOutput out) throws IOException {
+            String json = GsonUtils.GSON.toJson(this);
+            Text.writeString(out, json);
+        }
+
+        public static LoadStatistic read(DataInput in) throws IOException {
+            String json = Text.readString(in);
+            return GsonUtils.GSON.fromJson(json, LoadStatistic.class);
         }
     }
 
@@ -993,6 +1004,7 @@ public abstract class LoadJob extends AbstractTxnStateChangeCallback implements 
             authorizationInfo.write(out);
         }
         Text.writeString(out, timezone);
+        loadStatistic.write(out);
     }
 
     public void readFields(DataInput in) throws IOException {
@@ -1034,6 +1046,10 @@ public abstract class LoadJob extends AbstractTxnStateChangeCallback implements 
         }
         if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_61) {
             timezone = Text.readString(in);
+        }
+
+        if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_94) {
+            loadStatistic = LoadStatistic.read(in);
         }
     }
 
