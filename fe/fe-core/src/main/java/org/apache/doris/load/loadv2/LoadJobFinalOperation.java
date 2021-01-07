@@ -17,10 +17,13 @@
 
 package org.apache.doris.load.loadv2;
 
+import org.apache.doris.catalog.Catalog;
+import org.apache.doris.common.FeMetaVersion;
 import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
 import org.apache.doris.load.EtlStatus;
 import org.apache.doris.load.FailMsg;
+import org.apache.doris.qe.cache.Cache;
 import org.apache.doris.transaction.TransactionState;
 import org.apache.doris.transaction.TxnCommitAttachment;
 
@@ -41,13 +44,14 @@ public class LoadJobFinalOperation extends TxnCommitAttachment implements Writab
     private JobState jobState;
     // optional
     private FailMsg failMsg;
+    private LoadJob.LoadStatistic loadStatistic;
 
     public LoadJobFinalOperation() {
         super(TransactionState.LoadJobSourceType.BATCH_LOAD_JOB);
     }
 
     public LoadJobFinalOperation(long id, EtlStatus loadingStatus, int progress, long loadStartTimestamp,
-                                 long finishTimestamp, JobState jobState, FailMsg failMsg) {
+                                 long finishTimestamp, JobState jobState, FailMsg failMsg, LoadJob.LoadStatistic loadStatistic) {
         super(TransactionState.LoadJobSourceType.BATCH_LOAD_JOB);
         this.id = id;
         this.loadingStatus = loadingStatus;
@@ -56,6 +60,7 @@ public class LoadJobFinalOperation extends TxnCommitAttachment implements Writab
         this.finishTimestamp = finishTimestamp;
         this.jobState = jobState;
         this.failMsg = failMsg;
+        this.loadStatistic = loadStatistic;
     }
 
     public long getId() {
@@ -101,6 +106,7 @@ public class LoadJobFinalOperation extends TxnCommitAttachment implements Writab
             out.writeBoolean(true);
             failMsg.write(out);
         }
+        loadStatistic.write(out);
     }
 
     public void readFields(DataInput in) throws IOException {
@@ -115,6 +121,9 @@ public class LoadJobFinalOperation extends TxnCommitAttachment implements Writab
             failMsg = new FailMsg();
             failMsg.readFields(in);
         }
+        if (Catalog.getCurrentCatalogJournalVersion() >= FeMetaVersion.VERSION_94) {
+            loadStatistic = LoadJob.LoadStatistic.read(in);
+        }
     }
 
     @Override
@@ -127,6 +136,7 @@ public class LoadJobFinalOperation extends TxnCommitAttachment implements Writab
                 ", finishTimestamp=" + finishTimestamp +
                 ", jobState=" + jobState +
                 ", failMsg=" + failMsg +
+                ", loadStatistic=" + loadStatistic.toJson() +
                 '}';
     }
 }
