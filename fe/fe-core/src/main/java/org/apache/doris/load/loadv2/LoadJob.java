@@ -207,11 +207,14 @@ public abstract class LoadJob extends AbstractTxnStateChangeCallback implements 
         @Override
         public void write(DataOutput out) throws IOException {
             String json = GsonUtils.GSON.toJson(this);
+            LOG.info("write load statistic : " + this.toJson());
+            LOG.info("write load statistic : " + json);
             Text.writeString(out, json);
         }
 
         public static LoadStatistic read(DataInput in) throws IOException {
             String json = Text.readString(in);
+            LOG.info("read load statistic : " + json);
             return GsonUtils.GSON.fromJson(json, LoadStatistic.class);
         }
     }
