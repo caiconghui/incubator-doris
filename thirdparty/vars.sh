@@ -327,8 +327,8 @@ AWS_C_IO_MD5SUM="b95a6f9d20500727231dd726c957276b"
 # aws-s2n
 AWS_S2N_DOWNLOAD="https://github.com/awslabs/s2n/archive/v0.10.0.tar.gz"
 AWS_S2N_NAME="s2n-0.10.0.tar.gz"
-AWS_S2N_SOURCE="s2n-0.10.0"
-AWS_S2N_MD5SUM="9b3b39803b7090c2bd937f9cc73bc03f"
+AWS_S2N_SOURCE="s2n-tls-0.10.0"
+AWS_S2N_MD5SUM="345aa5d2f9e82347bb3e568c22104d0e"
 
 # aws-c-cal
 AWS_C_CAL_DOWNLOAD="https://github.com/awslabs/aws-c-cal/archive/v0.4.5.tar.gz"

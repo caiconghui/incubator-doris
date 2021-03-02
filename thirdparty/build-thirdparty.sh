@@ -437,7 +437,7 @@ build_mysql() {
     ${CMAKE_CMD} -G "${GENERATOR}" ../ -DWITH_BOOST=`pwd`/$BOOST_FOR_MYSQL_SOURCE -DCMAKE_INSTALL_PREFIX=$TP_INSTALL_DIR/mysql/ \
     -DCMAKE_INCLUDE_PATH=$TP_INCLUDE_DIR -DWITHOUT_SERVER=1 -DWITH_ZLIB=$TP_INSTALL_DIR \
     -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O3 -g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing -std=gnu++11" \
-    -DDISABLE_SHARED=1 -DBUILD_SHARED_LIBS=0
+    -DDISABLE_SHARED=1 -DBUILD_SHARED_LIBS=0 -DZLIB_LIBRARY=$TP_INSTALL_DIR/lib/libz.a
     ${BUILD_SYSTEM} -j$PARALLEL mysqlclient
 
     # copy headers manually
@@ -690,7 +690,7 @@ build_js_and_css() {
     check_if_source_exist Bootstrap-3.3.7/
     check_if_source_exist jQuery-3.3.1/
 
-    mkdir $TP_INSTALL_DIR/webroot/
+    mkdir -p $TP_INSTALL_DIR/webroot/
     cd $TP_SOURCE_DIR/
     cp -r $DATATABLES_SOURCE $TP_INSTALL_DIR/webroot/
     cp -r Bootstrap-3.3.7/ $TP_INSTALL_DIR/webroot/
