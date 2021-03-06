@@ -190,16 +190,6 @@ public class RollupJobV2 extends AlterJobV2 implements GsonPostProcessable {
             return;
         }
 
-        // 1. create rollup replicas
-        AgentBatchTask batchTask = new AgentBatchTask();
-        // count total replica num
-        int totalReplicaNum = 0;
-        for (MaterializedIndex rollupIdx : partitionIdToRollupIndex.values()) {
-            for (Tablet tablet : rollupIdx.getTablets()) {
-                totalReplicaNum += tablet.getReplicas().size();
-            }
-        }
-        MarkedCountDownLatch<Long, Long> countDownLatch = new MarkedCountDownLatch<Long, Long>(totalReplicaNum);
         OlapTable tbl = null;
         try {
             tbl = (OlapTable) db.getTableOrThrowException(tableId, Table.TableType.OLAP);
@@ -207,8 +197,21 @@ public class RollupJobV2 extends AlterJobV2 implements GsonPostProcessable {
             throw new AlterCancelException(e.getMessage());
         }
 
+        // 1. create rollup replicas
+        AgentBatchTask batchTask = new AgentBatchTask();
+        MarkedCountDownLatch<Long, Long> countDownLatch = null;
+        int totalReplicaNum = 0;
+
         tbl.readLock();
         try {
+            // count total replica num
+            for (MaterializedIndex rollupIdx : partitionIdToRollupIndex.values()) {
+                for (Tablet tablet : rollupIdx.getTablets()) {
+                    totalReplicaNum += tablet.getReplicas().size();
+                }
+            }
+            countDownLatch = new MarkedCountDownLatch<>(totalReplicaNum);
+
             Preconditions.checkState(tbl.getState() == OlapTableState.ROLLUP);
             for (Map.Entry<Long, MaterializedIndex> entry : this.partitionIdToRollupIndex.entrySet()) {
                 long partitionId = entry.getKey();
