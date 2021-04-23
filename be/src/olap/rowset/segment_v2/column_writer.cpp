@@ -19,6 +19,7 @@
 
 #include <cstddef>
 
+#include <boost/stacktrace.hpp>
 #include "common/logging.h"
 #include "env/env.h"
 #include "gutil/strings/substitute.h"
@@ -205,6 +206,8 @@ Status ScalarColumnWriter::init() {
         _null_bitmap_builder.reset(new NullBitmapBuilder());
     }
     if (_opts.need_zone_map) {
+        LOG(WARNING) << "cch13 opt need zone map";
+        LOG(WARNING) << "cch13" << boost::stacktrace::stacktrace();
         _zone_map_index_builder.reset(new ZoneMapIndexWriter(get_field()));
     }
     if (_opts.need_bitmap_index) {

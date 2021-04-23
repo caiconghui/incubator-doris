@@ -446,6 +446,8 @@ uint32_t TabletMeta::mem_size() const {
 void TabletMeta::to_json(string* json_string, json2pb::Pb2JsonOptions& options) {
     TabletMetaPB tablet_meta_pb;
     to_meta_pb(&tablet_meta_pb);
+    LOG(INFO) << "cch13 size of " << tablet_meta_pb.ByteSizeLong();
+    LOG(INFO) << "cch13 json size" << json_string->size();
     json2pb::ProtoMessageToJson(tablet_meta_pb, json_string, options);
 }
 
@@ -478,7 +480,6 @@ OLAPStatus TabletMeta::add_rs_meta(const RowsetMetaSharedPtr& rs_meta) {
     if (rs_meta->has_delete_predicate()) {
         add_delete_predicate(rs_meta->delete_predicate(), rs_meta->version().first);
     }
-
     return OLAP_SUCCESS;
 }
 

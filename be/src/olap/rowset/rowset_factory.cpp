@@ -20,6 +20,7 @@
 #include <memory>
 
 #include "beta_rowset.h"
+#include <boost/stacktrace.hpp>
 #include "gen_cpp/olap_file.pb.h"
 #include "olap/rowset/alpha_rowset.h"
 #include "olap/rowset/alpha_rowset_writer.h"
@@ -30,6 +31,7 @@ namespace doris {
 
 OLAPStatus RowsetFactory::create_rowset(const TabletSchema* schema, const std::string& rowset_path,
                                         RowsetMetaSharedPtr rowset_meta, RowsetSharedPtr* rowset) {
+    LOG(WARNING) << "cch13 " << boost::stacktrace::stacktrace();
     if (rowset_meta->rowset_type() == ALPHA_ROWSET) {
         rowset->reset(new AlphaRowset(schema, rowset_path, rowset_meta));
         return (*rowset)->init();
@@ -43,6 +45,7 @@ OLAPStatus RowsetFactory::create_rowset(const TabletSchema* schema, const std::s
 
 OLAPStatus RowsetFactory::create_rowset_writer(const RowsetWriterContext& context,
                                                std::unique_ptr<RowsetWriter>* output) {
+    LOG(WARNING) << "cch13 " << "create rowset writer " << context.rowset_type << " " << boost::stacktrace::stacktrace();
     if (context.rowset_type == ALPHA_ROWSET) {
         output->reset(new AlphaRowsetWriter);
         return (*output)->init(context);

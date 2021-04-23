@@ -277,6 +277,7 @@ protected:
         auto slice = reinterpret_cast<Slice*>(type_value);
         slice->size = _length;
         slice->data = (char*)pool->allocate(slice->size);
+        LOG(WARNING) << "cch13 string value length " << _length;
         return type_value;
     }
 
@@ -415,6 +416,7 @@ public:
     }
 
     char* allocate_value(MemPool* pool) const override {
+        LOG(WARNING) << "cch13 allocate char";
         return Field::allocate_string_value(pool);
     }
 
@@ -448,6 +450,7 @@ public:
     }
 
     char* allocate_value(MemPool* pool) const override {
+        LOG(WARNING) << "cch13 allocate vchar";
         return Field::allocate_string_value(pool);
     }
 

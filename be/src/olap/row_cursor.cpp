@@ -174,11 +174,13 @@ OLAPStatus RowCursor::allocate_memory_for_string_type(const TabletSchema& schema
     DCHECK(_variable_buf == nullptr) << "allocate memory twice";
     _variable_buf = new (nothrow) char[_variable_len];
     memset(_variable_buf, 0, _variable_len);
-
+    LOG(WARNING) << "cch13 variables len " << _variable_len;
+    LOG(WARNING) << "cch13 fix len " << _fixed_len;
     // init slice of char, varchar, hll type
     char* fixed_ptr = _fixed_buf;
     char* variable_ptr = _variable_buf;
     for (auto cid : _schema->column_ids()) {
+        LOG(WARNING) << "cch13 cid " << cid << "schema column offset " << _schema->column(cid);
         fixed_ptr = _fixed_buf + _schema->column_offset(cid);
         variable_ptr = column_schema(cid)->allocate_memory(fixed_ptr + 1, variable_ptr);
     }

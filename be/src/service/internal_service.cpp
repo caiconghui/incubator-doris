@@ -95,7 +95,7 @@ void PInternalServiceImpl<T>::tablet_writer_add_batch(google::protobuf::RpcContr
                                                       const PTabletWriterAddBatchRequest* request,
                                                       PTabletWriterAddBatchResult* response,
                                                       google::protobuf::Closure* done) {
-    VLOG_RPC << "tablet writer add batch, id=" << request->id()
+    LOG(WARNING) << "cch13 tablet writer add batch, id=" << request->id()
              << ", index_id=" << request->index_id() << ", sender_id=" << request->sender_id();
     // add batch maybe cost a lot of time, and this callback thread will be held.
     // this will influence query execution, because the pthreads under bthread may be
