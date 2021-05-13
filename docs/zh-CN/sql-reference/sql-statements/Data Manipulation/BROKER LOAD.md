@@ -506,6 +506,18 @@ under the License.
         ) 
         with BROKER "hdfs" ("username"="user", "password"="pass");
          
+     15. 导入Json文件中数据  指定FORMAT为json， 默认是通过文件后缀判断，设置读取数据的参数
+
+        LOAD LABEL example_db.label9
+        (
+        DATA INFILE("hdfs://hdfs_host:hdfs_port/user/palo/data/input/file")
+        INTO TABLE `my_table`
+        FORMAT AS "json"
+        (k1, k2, k3)
+        properties("fuzzy_parse"="true", "strip_outer_array"="true")
+        )
+        WITH BROKER hdfs ("username"="hdfs_user", "password"="hdfs_password");
+
 ## keyword
 
     BROKER,LOAD

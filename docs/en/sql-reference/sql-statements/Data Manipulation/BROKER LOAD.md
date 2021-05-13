@@ -487,6 +487,18 @@ under the License.
          WHERE k1 > 3
         ) 
         with BROKER "hdfs" ("username"="user", "password"="pass");
+
+    15. Import the data in the JSON file, and specify format as JSON, it is judged by the file suffix by default, set parameters for reading data
+
+        LOAD LABEL example_db.label9
+        (
+        DATA INFILE("hdfs://hdfs_host:hdfs_port/user/palo/data/input/file")
+        INTO TABLE `my_table`
+        FORMAT AS "json"
+        (k1, k2, k3)
+        properties("fuzzy_parse"="true", "strip_outer_array"="true")
+        )
+        WITH BROKER hdfs ("username"="hdfs_user", "password"="hdfs_password");   
      
 ## keyword
 
