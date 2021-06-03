@@ -237,8 +237,10 @@ int StreamLoadAction::on_header(HttpRequest* req) {
         HttpChannel::send_reply(req, str);
         streaming_load_current_processing->increment(-1);
 #ifndef BE_TEST
-        str = ctx->prepare_stream_load_record(str);
-        _sava_stream_load_record(ctx, str);
+        if (config::enable_stream_load_record) {
+            str = ctx->prepare_stream_load_record(str);
+            _sava_stream_load_record(ctx, str);
+        }
 #endif
         return -1;
     }

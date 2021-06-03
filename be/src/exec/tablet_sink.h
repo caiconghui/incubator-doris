@@ -58,12 +58,12 @@ struct AddBatchCounter {
     // total execution time of a add_batch rpc
     int64_t add_batch_execution_time_us = 0;
     // lock waiting time in a add_batch rpc
-    int64_t add_batch_wait_lock_time_us = 0;
+    int64_t add_batch_wait_execution_time_us = 0;
     // number of add_batch call
     int64_t add_batch_num = 0;
     AddBatchCounter& operator+=(const AddBatchCounter& rhs) {
         add_batch_execution_time_us += rhs.add_batch_execution_time_us;
-        add_batch_wait_lock_time_us += rhs.add_batch_wait_lock_time_us;
+        add_batch_wait_execution_time_us += rhs.add_batch_wait_execution_time_us;
         add_batch_num += rhs.add_batch_num;
         return *this;
     }
