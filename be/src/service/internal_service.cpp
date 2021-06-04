@@ -147,7 +147,6 @@ Status PInternalServiceImpl<T>::_exec_plan_fragment(const std::string& ser_reque
     }
     // LOG(INFO) << "exec plan fragment, fragment_instance_id=" << print_id(t_request.params.fragment_instance_id)
     //  << ", coord=" << t_request.coord << ", backend=" << t_request.backend_num;
-    LOG(WARNING) << "cch13  " << t_request;
     return _exec_env->fragment_mgr()->exec_plan_fragment(t_request);
 }
 

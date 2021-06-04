@@ -44,6 +44,7 @@ class Bitmap;
 class MemTracker;
 class RuntimeProfile;
 class RowDescriptor;
+class ThreadPool;
 class Tuple;
 class TupleDescriptor;
 class ExprContext;
@@ -170,7 +171,9 @@ public:
     // 1: running, haven't reach eos.
     // only allow 1 rpc in flight
     // plz make sure, this func should be called after open_wait().
-    int try_send_and_fetch_status();
+    int try_send_and_fetch_status(std::unique_ptr<ThreadPool>& thread_pool);
+
+    void try_send_batch();
 
     void time_report(std::unordered_map<int64_t, AddBatchCounter>* add_batch_counter_map,
                      int64_t* serialize_batch_ns, int64_t* mem_exceeded_block_ns,
@@ -414,6 +417,7 @@ private:
     // the timeout of load channels opened by this tablet sink. in second
     int64_t _load_channel_timeout_s = 0;
 
+    int32_t _send_batch_parallelism = 1;
 	// True if this sink has been closed once
 	bool _is_closed = false;
 	// Save the status of close() method

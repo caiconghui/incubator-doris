@@ -580,6 +580,7 @@ struct TStreamLoadPutRequest {
     31: optional bool fuzzy_parse
     32: optional string line_delimiter
     33: optional bool read_json_by_line
+    34: optional i32  send_batch_parallelism;
 }
 
 struct TStreamLoadPutResult {

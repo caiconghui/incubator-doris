@@ -81,6 +81,7 @@ public class LoadStmt extends DdlStmt {
     public static final String STRICT_MODE = "strict_mode";
     public static final String TIMEZONE = "timezone";
     public static final String LOAD_PARALLELISM = "load_parallelism";
+    public static final String SEND_BATCH_PARALLELISM = "send_batch_parallelism";
 
     // for load data from Baidu Object Store(BOS)
     public static final String BOS_ENDPOINT = "bos_endpoint";
@@ -113,7 +114,6 @@ public class LoadStmt extends DdlStmt {
     public static final String KEY_IN_PARAM_FUNCTION_COLUMN = "function_column";
     public static final String KEY_IN_PARAM_SEQUENCE_COL = "sequence_col";
     public static final String KEY_IN_PARAM_BACKEND_ID = "backend_id";
-
     private final LabelName label;
     private final List<DataDescription> dataDescriptions;
     private final BrokerDesc brokerDesc;
@@ -156,6 +156,12 @@ public class LoadStmt extends DdlStmt {
                 }
             })
             .put(LOAD_PARALLELISM, new Function<String, Integer>() {
+                @Override
+                public @Nullable Integer apply(@Nullable String s) {
+                    return Integer.valueOf(s);
+                }
+            })
+            .put(SEND_BATCH_PARALLELISM, new Function<String, Integer>() {
                 @Override
                 public @Nullable Integer apply(@Nullable String s) {
                     return Integer.valueOf(s);

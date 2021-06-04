@@ -481,6 +481,14 @@ Status StreamLoadAction::_process_put(HttpRequest* http_req, StreamLoadContext* 
                 http_req->header(HTTP_FUNCTION_COLUMN + "." + HTTP_SEQUENCE_COL));
     }
 
+    if (!http_req->header(HTTP_SEND_BATCH_PARALLELISM).empty()) {
+        try {
+            request.__set_send_batch_parallelism(std::stoi(http_req->header(HTTP_SEND_BATCH_PARALLELISM)));
+        } catch (const std::invalid_argument& e) {
+            return Status::InvalidArgument("Invalid send_batch_parallelism format");
+        }
+    }
+
     if (ctx->timeout_second != -1) {
         request.__set_timeout(ctx->timeout_second);
     }

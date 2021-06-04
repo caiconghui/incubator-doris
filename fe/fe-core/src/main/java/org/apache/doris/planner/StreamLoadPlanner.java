@@ -143,7 +143,7 @@ public class StreamLoadPlanner {
         // create dest sink
         List<Long> partitionIds = getAllPartitionIds();
         OlapTableSink olapTableSink = new OlapTableSink(destTable, tupleDesc, partitionIds);
-        olapTableSink.init(loadId, taskInfo.getTxnId(), db.getId(), taskInfo.getTimeout());
+        olapTableSink.init(loadId, taskInfo.getTxnId(), db.getId(), taskInfo.getTimeout(), taskInfo.getSendBatchParallelism());
         olapTableSink.complete();
 
         // for stream load, we only need one fragment, ScanNode -> DataSink.
