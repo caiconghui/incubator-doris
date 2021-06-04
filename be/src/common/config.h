@@ -604,6 +604,11 @@ CONF_mInt32(remote_storage_read_buffer_mb, "256");
 //      DEBUG: 1
 // the level equal or lower than mem_tracker_level will show in web page
 CONF_Int16(mem_tracker_level, "0");
+
+// max send batch parallelism for olap table sink
+// The value set by the user for send_batch_parallelism is not allowed to exceed max_send_batch_parallelism
+CONF_mInt32(max_send_batch_parallelism, "1");
+CONF_Validator(max_send_batch_parallelism, [](const int config) -> bool { return config >= 1; });
 } // namespace config
 
 } // namespace doris

@@ -1027,9 +1027,11 @@ void OlapTableSink::_send_batch_process() {
         for (auto index_channel : _channels) {
             send_batch_pool_queue_size += index_channel->num_node_channels();
         }
+        int32_t send_batch_parallelism = _send_batch_parallelism <= config::max_send_batch_parallelism ?
+                _send_batch_parallelism : config::max_send_batch_parallelism;
         auto s = ThreadPoolBuilder("SendBatchThreadPool")
-                .set_min_threads(_send_batch_parallelism)
-                .set_max_threads(_send_batch_parallelism)
+                .set_min_threads(send_batch_parallelism)
+                .set_max_threads(send_batch_parallelism)
                 .set_max_queue_size(send_batch_pool_queue_size)
                 .build(&thread_pool);
         if (!s.ok()) {
