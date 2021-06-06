@@ -294,6 +294,19 @@ public class LoadStmt extends DdlStmt {
             properties.put(TIMEZONE, TimeUtils.checkTimeZoneValidAndStandardize(
                     properties.getOrDefault(LoadStmt.TIMEZONE, TimeUtils.DEFAULT_TIME_ZONE)));
         }
+
+        // send batch parallelism
+        final String sendBatchParallelism = properties.get(SEND_BATCH_PARALLELISM);
+        if (sendBatchParallelism != null) {
+            try {
+                final int sendBatchParallelismValue = Integer.valueOf(sendBatchParallelism);
+                if (sendBatchParallelismValue < 1) {
+                    throw new DdlException(SEND_BATCH_PARALLELISM + " must be greater than 0");
+                }
+            } catch (NumberFormatException e) {
+                throw new DdlException(SEND_BATCH_PARALLELISM + " is not a number.");
+            }
+        }
     }
 
     @Override

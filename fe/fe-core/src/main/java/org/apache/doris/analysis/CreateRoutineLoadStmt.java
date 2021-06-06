@@ -178,7 +178,7 @@ public class CreateRoutineLoadStmt extends DdlStmt {
     public static final Predicate<Long> MAX_BATCH_ROWS_PRED = (v) -> v >= 200000;
     public static final Predicate<Long> MAX_BATCH_SIZE_PRED = (v) -> v >= 100 * 1024 * 1024 && v <= 1024 * 1024 * 1024;
     public static final Predicate<Long> EXEC_MEM_LIMIT_PRED = (v) -> v >= 0L;
-    public static final Predicate<Long> SEND_BATCH_PARALLELISM_PRED = (v) -> v > 1L;
+    public static final Predicate<Long> SEND_BATCH_PARALLELISM_PRED = (v) -> v > 0L;
 
     public CreateRoutineLoadStmt(LabelName labelName, String tableName, List<ParseNode> loadPropertyList,
                                  Map<String, String> jobProperties, String typeName,
@@ -445,7 +445,7 @@ public class CreateRoutineLoadStmt extends DdlStmt {
 
         sendBatchParallelism = ((Long) Util.getLongPropertyOrDefault(jobProperties.get(SEND_BATCH_PARALLELISM),
                 RoutineLoadJob.DEFAULT_SEND_BATCH_PARALLELISM, SEND_BATCH_PARALLELISM_PRED,
-                SEND_BATCH_PARALLELISM + " should > 1")).intValue();
+                SEND_BATCH_PARALLELISM + " should > 0")).intValue();
 
         if (ConnectContext.get() != null) {
             timezone = ConnectContext.get().getSessionVariable().getTimeZone();
