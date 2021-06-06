@@ -555,6 +555,11 @@ load tablets from header failed, failed tablets size: xxx, path=xxx
 
 ### `max_runnings_transactions_per_txn_map`
 
+### `max_send_batch_parallelism`
+
+   OlapTableSink 发送批处理数据的最大并行度，用户为 `send_batch_parallelism` 设置的值不允许超过 `max_send_batch_parallelism` ，
+   如果超过， `send_batch_parallelism` 将被设置为 `max_send_batch_parallelism` 的值。
+
 ### `max_tablet_num_per_shard`
 
 ### `max_tablet_version_num`

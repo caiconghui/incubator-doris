@@ -554,6 +554,11 @@ Indicates how many tablets in this data directory failed to load. At the same ti
 
 ### `max_runnings_transactions_per_txn_map`
 
+### `max_send_batch_parallelism`
+
+    Max send batch parallelism for OlapTableSink. The value set by the user for `send_batch_parallelism` is not allowed to exceed `max_send_batch_parallelism`,
+    if exceed, the value of `send_batch_parallelism` would be `max_send_batch_parallelism`.
+
 ### `max_tablet_num_per_shard`
 
 ### `max_tablet_version_num`
