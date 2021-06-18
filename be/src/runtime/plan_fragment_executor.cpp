@@ -269,7 +269,7 @@ Status PlanFragmentExecutor::open_internal() {
         SCOPED_TIMER(profile()->total_time_counter());
         RETURN_IF_ERROR(_plan->open(_runtime_state.get()));
     }
-
+    return Status::InternalError("just for test");
     if (_sink.get() == NULL) {
         return Status::OK();
     }
@@ -562,7 +562,9 @@ void PlanFragmentExecutor::close() {
                     std::lock_guard<std::mutex> l(_status_lock);
                     status = _status;
                 }
+                LOG(WARNING) << "cch13 begin to close sink";
                 _sink->close(runtime_state(), status);
+                LOG(WARNING) << "cch13 finish to close sink";
             } else {
                 _sink->close(runtime_state(), Status::InternalError("prepare failed"));
             }

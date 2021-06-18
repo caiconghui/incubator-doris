@@ -42,6 +42,7 @@ CaseExpr::~CaseExpr() {}
 Status CaseExpr::prepare(RuntimeState* state, const RowDescriptor& desc, ExprContext* ctx) {
     RETURN_IF_ERROR(Expr::prepare(state, desc, ctx));
     register_function_context(ctx, state, 0);
+    LOG(WARNING) << "cch13 finished register function cast expr " << this;
     return Status::OK();
 }
 
@@ -51,6 +52,7 @@ Status CaseExpr::open(RuntimeState* state, ExprContext* ctx,
     FunctionContext* fn_ctx = ctx->fn_context(_fn_context_index);
     CaseExprState* case_state =
             reinterpret_cast<CaseExprState*>(fn_ctx->allocate(sizeof(CaseExprState)));
+    LOG(WARNING) << "cch13 finished open function cast expr " << this;
     fn_ctx->set_function_state(FunctionContext::THREAD_LOCAL, case_state);
     if (_has_case_expr) {
         case_state->case_val = create_any_val(state->obj_pool(), _children[0]->type());
@@ -67,7 +69,9 @@ void CaseExpr::close(RuntimeState* state, ExprContext* ctx,
     if (_fn_context_index != -1) {
         FunctionContext* fn_ctx = ctx->fn_context(_fn_context_index);
         void* case_state = fn_ctx->get_function_state(FunctionContext::THREAD_LOCAL);
+        LOG(WARNING) << "cch13 start close function cast expr " << this;
         fn_ctx->free(reinterpret_cast<uint8_t*>(case_state));
+        LOG(WARNING) << "cch13 finished close function cast expr " << this;
     }
     Expr::close(state, ctx, scope);
 }

@@ -732,7 +732,9 @@ Status DataStreamSender::close(RuntimeState* state, Status exec_status) {
     for (auto iter : _partition_infos) {
         iter->close(state);
     }
+    LOG(WARNING) << "cch13 begin to close expr " << this;
     Expr::close(_partition_expr_ctxs, state);
+    LOG(WARNING) << "cch13 finish to close expr" << this;
 
     return final_st;
 }
